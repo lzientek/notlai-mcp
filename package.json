@@ -1,6 +1,6 @@
 {
   "name": "notlai-mcp",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "MCP server for Notlai — Access your notes from Claude Desktop",
   "type": "module",
   "main": "dist/index.js",
@@ -12,7 +12,13 @@
     "prepublishOnly": "npm run build",
     "lint": "tsc --noEmit"
   },
-  "keywords": ["mcp", "claude", "notes", "notlai", "model-context-protocol"],
+  "keywords": [
+    "mcp",
+    "claude",
+    "notes",
+    "notlai",
+    "model-context-protocol"
+  ],
   "author": "Lucas Zientek",
   "license": "MIT",
   "repository": {

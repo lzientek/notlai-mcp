@@ -1,0 +1,37 @@
+{
+  "name": "notlai-mcp",
+  "version": "1.0.0",
+  "description": "MCP server for Notlai — Access your notes from Claude Desktop",
+  "type": "module",
+  "main": "dist/index.js",
+  "bin": {
+    "notlai-mcp": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "prepublishOnly": "npm run build",
+    "lint": "tsc --noEmit"
+  },
+  "keywords": ["mcp", "claude", "notes", "notlai", "model-context-protocol"],
+  "author": "Lucas Zientek",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/lzientek/notlai-mcp.git"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "files": [
+    "dist"
+  ],
+  "dependencies": {
+    "@aws-sdk/client-cognito-identity-provider": "^3.1090.0",
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "zod": "^3.23.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.6.0"
+  }
+}

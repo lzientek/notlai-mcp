@@ -11,11 +11,22 @@ import { validatePassword } from './validators/password.js';
 import { mapCognitoError, authRequiredError, tokenExpiredError } from './errors/mapper.js';
 import { refreshTokenIfNeeded } from './auth/refresh.js';
 import { createLocalAuthServer, type LocalAuthServer } from './auth/local-auth-server.js';
+import { createApiClient, type ApiClient } from './api/client.js';
 import type { McpNotesConfig } from './types/config.js';
 
 export interface McpNotesServerDeps {
   config: McpNotesConfig;
   cognitoClient?: CognitoIdentityProviderClient;
+}
+
+interface Tag {
+  tagId: string;
+  name: string;
+  createdAt: string;
+}
+
+interface TagsResponse {
+  tags: Tag[];
 }
 
 export function createMcpNotesServer(deps: McpNotesServerDeps) {
@@ -26,11 +37,18 @@ export function createMcpNotesServer(deps: McpNotesServerDeps) {
 
   const credentialStore = createCredentialStore();
 
+  const apiClient: ApiClient = createApiClient({
+    apiGatewayUrl: config.apiGatewayUrl,
+    credentialStore,
+    cognitoClient,
+    cognitoClientId: config.cognitoClientId,
+  });
+
   let activeAuthServer: LocalAuthServer | null = null;
 
   const server = new McpServer({
     name: 'notlai-mcp',
-    version: '1.0.0',
+    version: '1.1.0',
   });
 
   // ─── Register Tool ─────────────────────────────────────────────────
@@ -295,6 +313,120 @@ export function createMcpNotesServer(deps: McpNotesServerDeps) {
             {
               type: 'text' as const,
               text: `Session expired. ${err.remedy}`,
+            },
+          ],
+          isError: true,
+        };
+      }
+    },
+  );
+
+  // ─── List Tags Tool ────────────────────────────────────────────────
+  server.tool(
+    'mcp_notes_list_tags',
+    'List all your existing tags. Use this before creating or updating a note to find relevant tags to assign. Returns the complete list of tag names available for categorizing notes.',
+    {},
+    async () => {
+      try {
+        const result = await apiClient.get<TagsResponse>('/tags');
+        const tags = result.tags;
+
+        if (tags.length === 0) {
+          return {
+            content: [
+              {
+                type: 'text' as const,
+                text: 'No tags created yet. Use mcp_notes_create_tag to create your first tag.',
+              },
+            ],
+          };
+        }
+
+        const tagList = tags.map((t) => `• ${t.name}`).join('\n');
+        return {
+          content: [
+            {
+              type: 'text' as const,
+              text: `Your tags (${tags.length}):\n${tagList}`,
+            },
+          ],
+        };
+      } catch (error) {
+        return {
+          content: [
+            {
+              type: 'text' as const,
+              text: `Error listing tags: ${error instanceof Error ? error.message : String(error)}`,
+            },
+          ],
+          isError: true,
+        };
+      }
+    },
+  );
+
+  // ─── Create Tag Tool ───────────────────────────────────────────────
+  server.tool(
+    'mcp_notes_create_tag',
+    'Create a new tag for categorizing notes. Check existing tags first with mcp_notes_list_tags to avoid duplicates. Tag names are stored in lowercase.',
+    {
+      name: z
+        .string()
+        .min(1)
+        .max(50)
+        .describe('Tag name (e.g., "work", "ideas", "project-x"). Will be stored in lowercase.'),
+    },
+    async ({ name }) => {
+      try {
+        const result = await apiClient.post<Tag>('/tags', { name });
+        return {
+          content: [
+            {
+              type: 'text' as const,
+              text: `Tag "${result.name}" created successfully (ID: ${result.tagId}).`,
+            },
+          ],
+        };
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        return {
+          content: [
+            {
+              type: 'text' as const,
+              text: `Error creating tag: ${message}`,
+            },
+          ],
+          isError: true,
+        };
+      }
+    },
+  );
+
+  // ─── Delete Tag Tool ───────────────────────────────────────────────
+  server.tool(
+    'mcp_notes_delete_tag',
+    'Delete a tag. This also removes the tag from all notes that use it. Use mcp_notes_list_tags first to get tag IDs.',
+    {
+      tagId: z.string().describe('The tag ID to delete (get IDs from mcp_notes_list_tags)'),
+    },
+    async ({ tagId }) => {
+      try {
+        await apiClient.del(`/tags/${encodeURIComponent(tagId)}`);
+        return {
+          content: [
+            {
+              type: 'text' as const,
+              text: 'Tag deleted successfully. It has been removed from all notes that used it.',
+            },
+          ],
+        };
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        return {
+          content: [
+            {
+              type: 'text' as const,
+              text: `Error deleting tag: ${message}`,
             },
           ],
           isError: true,

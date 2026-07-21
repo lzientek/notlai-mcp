@@ -324,7 +324,7 @@ export function createMcpNotesServer(deps: McpNotesServerDeps) {
   // ─── List Tags Tool ────────────────────────────────────────────────
   server.tool(
     'mcp_notes_list_tags',
-    'List all your existing tags. Use this before creating or updating a note to find relevant tags to assign. Returns the complete list of tag names available for categorizing notes.',
+    'List all your existing tags with their IDs. Use this before creating or updating a note to find relevant tags to assign. When creating a note, pass existing tag names in the tags field.',
     {},
     async () => {
       try {
@@ -342,12 +342,14 @@ export function createMcpNotesServer(deps: McpNotesServerDeps) {
           };
         }
 
-        const tagList = tags.map((t) => `• ${t.name}`).join('\n');
+        const tagList = tags
+          .map((t) => `• ${t.name} (id: ${t.tagId})`)
+          .join('\n');
         return {
           content: [
             {
               type: 'text' as const,
-              text: `Your tags (${tags.length}):\n${tagList}`,
+              text: `Your tags (${tags.length}):\n${tagList}\n\nUse tag names (not IDs) when assigning tags to notes.`,
             },
           ],
         };
@@ -383,7 +385,7 @@ export function createMcpNotesServer(deps: McpNotesServerDeps) {
           content: [
             {
               type: 'text' as const,
-              text: `Tag "${result.name}" created successfully (ID: ${result.tagId}).`,
+              text: `Tag "${result.name}" created successfully (ID: ${result.tagId}). You can now use "${result.name}" when creating or updating notes.`,
             },
           ],
         };
@@ -405,9 +407,9 @@ export function createMcpNotesServer(deps: McpNotesServerDeps) {
   // ─── Delete Tag Tool ───────────────────────────────────────────────
   server.tool(
     'mcp_notes_delete_tag',
-    'Delete a tag. This also removes the tag from all notes that use it. Use mcp_notes_list_tags first to get tag IDs.',
+    'Delete a tag by its ID. This also removes the tag from all notes that use it. Use mcp_notes_list_tags to see available tags and their IDs.',
     {
-      tagId: z.string().describe('The tag ID to delete (get IDs from mcp_notes_list_tags)'),
+      tagId: z.string().describe('The tag ID to delete (ULID format, get from mcp_notes_list_tags)'),
     },
     async ({ tagId }) => {
       try {

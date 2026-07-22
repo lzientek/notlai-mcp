@@ -68,7 +68,7 @@ export function createMcpNotesServer(deps: McpNotesServerDeps) {
 
   // ─── Register Tool ─────────────────────────────────────────────────
   server.tool(
-    'mcp_notes_register',
+    'notlai_register',
     'Create a new Notlai account with email and password',
     {
       email: z.string().describe('Your email address'),
@@ -135,7 +135,7 @@ export function createMcpNotesServer(deps: McpNotesServerDeps) {
 
   // ─── Login Tool ────────────────────────────────────────────────────
   server.tool(
-    'mcp_notes_login',
+    'notlai_login',
     'Authenticate with email and password to obtain access tokens',
     {
       email: z.string().describe('Your email address'),
@@ -211,7 +211,7 @@ export function createMcpNotesServer(deps: McpNotesServerDeps) {
 
   // ─── Web Login Tool ────────────────────────────────────────────────
   server.tool(
-    'mcp_notes_web_login',
+    'notlai_web_login',
     'Start web-based login flow. Opens a local auth server and provides a URL to authenticate via the web.',
     {
       port: z.number().optional().describe('Local server port (default: 9876)'),
@@ -270,7 +270,7 @@ export function createMcpNotesServer(deps: McpNotesServerDeps) {
 
   // ─── Logout Tool ───────────────────────────────────────────────────
   server.tool(
-    'mcp_notes_logout',
+    'notlai_logout',
     'Delete local credentials and end the session',
     {},
     async () => {
@@ -288,7 +288,7 @@ export function createMcpNotesServer(deps: McpNotesServerDeps) {
 
   // ─── Status Tool ───────────────────────────────────────────────────
   server.tool(
-    'mcp_notes_status',
+    'notlai_status',
     'Check authentication status and refresh token if needed',
     {},
     async () => {
@@ -298,7 +298,7 @@ export function createMcpNotesServer(deps: McpNotesServerDeps) {
           content: [
             {
               type: 'text' as const,
-              text: 'Not authenticated. Use mcp_notes_web_login or mcp_notes_login to sign in.',
+              text: 'Not authenticated. Use notlai_web_login or notlai_login to sign in.',
             },
           ],
           isError: true,
@@ -338,7 +338,7 @@ export function createMcpNotesServer(deps: McpNotesServerDeps) {
 
   // ─── List Notes Tool ────────────────────────────────────────────────
   server.tool(
-    'mcp_notes_list',
+    'notlai_list',
     'List your notes. Supports filtering by tags, date range, and text search. Returns the most recently updated notes first.',
     {
       tags: z.array(z.string()).optional().describe('Filter by tag names (notes with at least one matching tag)'),
@@ -394,10 +394,10 @@ export function createMcpNotesServer(deps: McpNotesServerDeps) {
 
   // ─── Get Note Tool ─────────────────────────────────────────────────
   server.tool(
-    'mcp_notes_get',
+    'notlai_get',
     'Get the full content of a specific note by its ID.',
     {
-      noteId: z.string().describe('The note ID (ULID format, from mcp_notes_list)'),
+      noteId: z.string().describe('The note ID (ULID format, from notlai_list)'),
     },
     async ({ noteId }) => {
       try {
@@ -416,12 +416,12 @@ export function createMcpNotesServer(deps: McpNotesServerDeps) {
 
   // ─── Create Note Tool ──────────────────────────────────────────────
   server.tool(
-    'mcp_notes_create',
-    'Create a new note. Before creating, consider using mcp_notes_list_tags to find relevant tags to assign.',
+    'notlai_create',
+    'Create a new note. Before creating, consider using notlai_list_tags to find relevant tags to assign.',
     {
       title: z.string().min(1).describe('Note title'),
       content: z.string().min(1).describe('Note content (plain text, supports newlines)'),
-      tags: z.array(z.string()).optional().describe('Tag names to assign (must exist — use mcp_notes_list_tags to check, or mcp_notes_create_tag to create new ones)'),
+      tags: z.array(z.string()).optional().describe('Tag names to assign (must exist — use notlai_list_tags to check, or notlai_create_tag to create new ones)'),
     },
     async ({ title, content, tags }) => {
       try {
@@ -447,8 +447,8 @@ export function createMcpNotesServer(deps: McpNotesServerDeps) {
 
   // ─── Update Note Tool ──────────────────────────────────────────────
   server.tool(
-    'mcp_notes_update',
-    'Update an existing note. Only provided fields will be changed. Use mcp_notes_list to find the note ID.',
+    'notlai_update',
+    'Update an existing note. Only provided fields will be changed. Use notlai_list to find the note ID.',
     {
       noteId: z.string().describe('The note ID to update (ULID format)'),
       title: z.string().optional().describe('New title (omit to keep current)'),
@@ -480,7 +480,7 @@ export function createMcpNotesServer(deps: McpNotesServerDeps) {
 
   // ─── Delete Note Tool ──────────────────────────────────────────────
   server.tool(
-    'mcp_notes_delete',
+    'notlai_delete',
     'Permanently delete a note by its ID. This cannot be undone.',
     {
       noteId: z.string().describe('The note ID to delete (ULID format)'),
@@ -502,7 +502,7 @@ export function createMcpNotesServer(deps: McpNotesServerDeps) {
 
   // ─── List Tags Tool ────────────────────────────────────────────────
   server.tool(
-    'mcp_notes_list_tags',
+    'notlai_list_tags',
     'List all your existing tags with their IDs. Use this before creating or updating a note to find relevant tags to assign. When creating a note, pass existing tag names in the tags field.',
     {},
     async () => {
@@ -515,7 +515,7 @@ export function createMcpNotesServer(deps: McpNotesServerDeps) {
             content: [
               {
                 type: 'text' as const,
-                text: 'No tags created yet. Use mcp_notes_create_tag to create your first tag.',
+                text: 'No tags created yet. Use notlai_create_tag to create your first tag.',
               },
             ],
           };
@@ -548,8 +548,8 @@ export function createMcpNotesServer(deps: McpNotesServerDeps) {
 
   // ─── Create Tag Tool ───────────────────────────────────────────────
   server.tool(
-    'mcp_notes_create_tag',
-    'Create a new tag for categorizing notes. Check existing tags first with mcp_notes_list_tags to avoid duplicates. Tag names are stored in lowercase.',
+    'notlai_create_tag',
+    'Create a new tag for categorizing notes. Check existing tags first with notlai_list_tags to avoid duplicates. Tag names are stored in lowercase.',
     {
       name: z
         .string()
@@ -585,10 +585,10 @@ export function createMcpNotesServer(deps: McpNotesServerDeps) {
 
   // ─── Delete Tag Tool ───────────────────────────────────────────────
   server.tool(
-    'mcp_notes_delete_tag',
-    'Delete a tag by its ID. This also removes the tag from all notes that use it. Use mcp_notes_list_tags to see available tags and their IDs.',
+    'notlai_delete_tag',
+    'Delete a tag by its ID. This also removes the tag from all notes that use it. Use notlai_list_tags to see available tags and their IDs.',
     {
-      tagId: z.string().describe('The tag ID to delete (ULID format, get from mcp_notes_list_tags)'),
+      tagId: z.string().describe('The tag ID to delete (ULID format, get from notlai_list_tags)'),
     },
     async ({ tagId }) => {
       try {

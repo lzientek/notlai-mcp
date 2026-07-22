@@ -25,55 +25,55 @@
   },
   "tools": [
     {
-      "name": "mcp_notes_register",
+      "name": "notlai_register",
       "description": "Create a new Notlai account with email and password"
     },
     {
-      "name": "mcp_notes_login",
+      "name": "notlai_login",
       "description": "Authenticate with email and password"
     },
     {
-      "name": "mcp_notes_web_login",
+      "name": "notlai_web_login",
       "description": "Start web-based login flow via browser"
     },
     {
-      "name": "mcp_notes_logout",
+      "name": "notlai_logout",
       "description": "Delete local credentials and end the session"
     },
     {
-      "name": "mcp_notes_status",
+      "name": "notlai_status",
       "description": "Check authentication status"
     },
     {
-      "name": "mcp_notes_list",
+      "name": "notlai_list",
       "description": "List notes with optional filters (tags, search, dates)"
     },
     {
-      "name": "mcp_notes_get",
+      "name": "notlai_get",
       "description": "Get the full content of a note by ID"
     },
     {
-      "name": "mcp_notes_create",
+      "name": "notlai_create",
       "description": "Create a new note with title, content, and optional tags"
     },
     {
-      "name": "mcp_notes_update",
+      "name": "notlai_update",
       "description": "Update an existing note (title, content, or tags)"
     },
     {
-      "name": "mcp_notes_delete",
+      "name": "notlai_delete",
       "description": "Permanently delete a note"
     },
     {
-      "name": "mcp_notes_list_tags",
+      "name": "notlai_list_tags",
       "description": "List all your tags"
     },
     {
-      "name": "mcp_notes_create_tag",
+      "name": "notlai_create_tag",
       "description": "Create a new tag for categorizing notes"
     },
     {
-      "name": "mcp_notes_delete_tag",
+      "name": "notlai_delete_tag",
       "description": "Delete a tag by its ID"
     }
   ],

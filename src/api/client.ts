@@ -22,7 +22,7 @@ export function createApiClient(deps: ApiClientDeps): ApiClient {
   async function getValidToken(): Promise<string> {
     const tokens = await credentialStore.load();
     if (!tokens) {
-      throw new Error('Not authenticated. Use mcp_notes_web_login or mcp_notes_login first.');
+      throw new Error('Not authenticated. Use notlai_web_login or notlai_login first.');
     }
 
     await refreshTokenIfNeeded(credentialStore, cognitoClient, cognitoClientId);

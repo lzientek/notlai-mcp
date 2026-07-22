@@ -76,7 +76,7 @@ export function authRequiredError(): AuthErrorResponse {
   return {
     code: 'AUTH_REQUIRED',
     message: 'Authentication is required to perform this action.',
-    remedy: 'Run mcp_notes_web_login or mcp_notes_login to authenticate.',
+    remedy: 'Run notlai_web_login or notlai_login to authenticate.',
   };
 }
 
@@ -84,6 +84,6 @@ export function tokenExpiredError(): AuthErrorResponse {
   return {
     code: 'AUTH_TOKEN_EXPIRED',
     message: 'Your session has expired.',
-    remedy: 'Run mcp_notes_web_login or mcp_notes_login to re-authenticate.',
+    remedy: 'Run notlai_web_login or notlai_login to re-authenticate.',
   };
 }

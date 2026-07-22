@@ -99,7 +99,7 @@ export function createMcpNotesServer(deps: McpNotesServerDeps) {
           content: [
             {
               type: 'text' as const,
-              text: 'Account created! Check your email for a verification code, then confirm your account at https://www.notlai.com',
+              text: 'Account created! Check your email for a verification code, then confirm your account at https://www.notlai.com/signup',
             },
           ],
         };
@@ -228,7 +228,7 @@ export function createMcpNotesServer(deps: McpNotesServerDeps) {
 
         await activeAuthServer.start();
 
-        const loginUrl = `${config.frontendUrl}?action=login&port=${authPort}`;
+        const loginUrl = `${config.frontendUrl}/login?port=${authPort}`;
 
         return {
           content: [

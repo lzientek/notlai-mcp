@@ -1,0 +1,69 @@
+{
+  "manifest_version": "0.2",
+  "name": "notlai-mcp",
+  "display_name": "Notlai Notes",
+  "version": "1.2.0",
+  "description": "Access your Notlai notes directly from Claude Desktop",
+  "long_description": "Notlai is a personal note-taking app designed for AI-first workflows. This extension connects Claude Desktop to your Notlai account, allowing you to create, read, update, and organize notes with tags — all through natural conversation.\n\nFeatures:\n- Create and manage notes via Claude\n- Organize with tags\n- Web-based login (no credentials stored in config)\n- Automatic token refresh",
+  "author": {
+    "name": "Lucas Zientek",
+    "url": "https://github.com/lzientek"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/lzientek/notlai-mcp"
+  },
+  "homepage": "https://www.notlai.com",
+  "icon": "icon.png",
+  "server": {
+    "type": "node",
+    "entry_point": "dist/index.js",
+    "mcp_config": {
+      "command": "node",
+      "args": ["${__dirname}/dist/index.js"]
+    }
+  },
+  "tools": [
+    {
+      "name": "mcp_notes_register",
+      "description": "Create a new Notlai account with email and password"
+    },
+    {
+      "name": "mcp_notes_login",
+      "description": "Authenticate with email and password"
+    },
+    {
+      "name": "mcp_notes_web_login",
+      "description": "Start web-based login flow via browser"
+    },
+    {
+      "name": "mcp_notes_logout",
+      "description": "Delete local credentials and end the session"
+    },
+    {
+      "name": "mcp_notes_status",
+      "description": "Check authentication status"
+    },
+    {
+      "name": "mcp_notes_list_tags",
+      "description": "List all your tags"
+    },
+    {
+      "name": "mcp_notes_create_tag",
+      "description": "Create a new tag for categorizing notes"
+    },
+    {
+      "name": "mcp_notes_delete_tag",
+      "description": "Delete a tag by its ID"
+    }
+  ],
+  "keywords": ["notes", "productivity", "notlai", "personal"],
+  "license": "MIT",
+  "compatibility": {
+    "claude_desktop": ">=1.0.0",
+    "platforms": ["darwin", "win32", "linux"],
+    "runtimes": {
+      "node": ">=20.0.0"
+    }
+  }
+}

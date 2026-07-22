@@ -48,7 +48,7 @@ export function createMcpNotesServer(deps: McpNotesServerDeps) {
 
   const server = new McpServer({
     name: 'notlai-mcp',
-    version: '1.1.0',
+    version: '1.2.0',
   });
 
   // ─── Register Tool ─────────────────────────────────────────────────

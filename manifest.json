@@ -2,7 +2,7 @@
   "manifest_version": "0.2",
   "name": "notlai-mcp",
   "display_name": "Notlai Notes",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "description": "Access your Notlai notes directly from Claude Desktop",
   "long_description": "Notlai is a personal note-taking app designed for AI-first workflows. This extension connects Claude Desktop to your Notlai account, allowing you to create, read, update, and organize notes with tags — all through natural conversation.\n\nFeatures:\n- Create and manage notes via Claude\n- Organize with tags\n- Web-based login (no credentials stored in config)\n- Automatic token refresh",
   "author": {
@@ -17,10 +17,10 @@
   "icon": "icon.png",
   "server": {
     "type": "node",
-    "entry_point": "dist/index.js",
+    "entry_point": "dist/bundle.cjs",
     "mcp_config": {
       "command": "node",
-      "args": ["${__dirname}/dist/index.js"]
+      "args": ["${__dirname}/dist/bundle.cjs"]
     }
   },
   "tools": [

@@ -45,23 +45,23 @@
       "description": "Check authentication status"
     },
     {
-      "name": "notlai_list",
+      "name": "notlai_list_notes",
       "description": "List notes with optional filters (tags, search, dates)"
     },
     {
-      "name": "notlai_get",
+      "name": "notlai_get_note",
       "description": "Get the full content of a note by ID"
     },
     {
-      "name": "notlai_create",
+      "name": "notlai_create_note",
       "description": "Create a new note with title, content, and optional tags"
     },
     {
-      "name": "notlai_update",
+      "name": "notlai_update_note",
       "description": "Update an existing note (title, content, or tags)"
     },
     {
-      "name": "notlai_delete",
+      "name": "notlai_delete_note",
       "description": "Permanently delete a note"
     },
     {

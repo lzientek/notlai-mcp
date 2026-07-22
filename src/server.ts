@@ -338,7 +338,7 @@ export function createMcpNotesServer(deps: McpNotesServerDeps) {
 
   // ─── List Notes Tool ────────────────────────────────────────────────
   server.tool(
-    'notlai_list',
+    'notlai_list_notes',
     'List your notes. Supports filtering by tags, date range, and text search. Returns the most recently updated notes first.',
     {
       tags: z.array(z.string()).optional().describe('Filter by tag names (notes with at least one matching tag)'),
@@ -394,10 +394,10 @@ export function createMcpNotesServer(deps: McpNotesServerDeps) {
 
   // ─── Get Note Tool ─────────────────────────────────────────────────
   server.tool(
-    'notlai_get',
+    'notlai_get_note',
     'Get the full content of a specific note by its ID.',
     {
-      noteId: z.string().describe('The note ID (ULID format, from notlai_list)'),
+      noteId: z.string().describe('The note ID (ULID format, from notlai_list_notes)'),
     },
     async ({ noteId }) => {
       try {
@@ -416,7 +416,7 @@ export function createMcpNotesServer(deps: McpNotesServerDeps) {
 
   // ─── Create Note Tool ──────────────────────────────────────────────
   server.tool(
-    'notlai_create',
+    'notlai_create_note',
     'Create a new note. Before creating, consider using notlai_list_tags to find relevant tags to assign.',
     {
       title: z.string().min(1).describe('Note title'),
@@ -447,8 +447,8 @@ export function createMcpNotesServer(deps: McpNotesServerDeps) {
 
   // ─── Update Note Tool ──────────────────────────────────────────────
   server.tool(
-    'notlai_update',
-    'Update an existing note. Only provided fields will be changed. Use notlai_list to find the note ID.',
+    'notlai_update_note',
+    'Update an existing note. Only provided fields will be changed. Use notlai_list_notes to find the note ID.',
     {
       noteId: z.string().describe('The note ID to update (ULID format)'),
       title: z.string().optional().describe('New title (omit to keep current)'),
@@ -480,7 +480,7 @@ export function createMcpNotesServer(deps: McpNotesServerDeps) {
 
   // ─── Delete Note Tool ──────────────────────────────────────────────
   server.tool(
-    'notlai_delete',
+    'notlai_delete_note',
     'Permanently delete a note by its ID. This cannot be undone.',
     {
       noteId: z.string().describe('The note ID to delete (ULID format)'),

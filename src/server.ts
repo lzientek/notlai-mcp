@@ -29,6 +29,21 @@ interface TagsResponse {
   tags: Tag[];
 }
 
+interface Note {
+  noteId: string;
+  userId: string;
+  title: string;
+  content: string;
+  tags: string[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface NotesListResponse {
+  notes: Note[];
+  nextCursor: string | null;
+}
+
 export function createMcpNotesServer(deps: McpNotesServerDeps) {
   const { config } = deps;
   const cognitoClient =
@@ -315,6 +330,170 @@ export function createMcpNotesServer(deps: McpNotesServerDeps) {
               text: `Session expired. ${err.remedy}`,
             },
           ],
+          isError: true,
+        };
+      }
+    },
+  );
+
+  // ─── List Notes Tool ────────────────────────────────────────────────
+  server.tool(
+    'mcp_notes_list',
+    'List your notes. Supports filtering by tags, date range, and text search. Returns the most recently updated notes first.',
+    {
+      tags: z.array(z.string()).optional().describe('Filter by tag names (notes with at least one matching tag)'),
+      search: z.string().optional().describe('Search text in title and content'),
+      from: z.string().optional().describe('Start date filter (ISO format, e.g. "2025-01-01")'),
+      to: z.string().optional().describe('End date filter (ISO format, e.g. "2025-12-31")'),
+      limit: z.number().optional().describe('Max number of notes to return (default: 20)'),
+      cursor: z.string().optional().describe('Pagination cursor from a previous response'),
+    },
+    async ({ tags, search, from, to, limit, cursor }) => {
+      try {
+        const params = new URLSearchParams();
+        if (tags && tags.length > 0) params.set('tags', tags.join(','));
+        if (search) params.set('search', search);
+        if (from) params.set('from', from);
+        if (to) params.set('to', to);
+        if (limit) params.set('limit', String(limit));
+        if (cursor) params.set('cursor', cursor);
+
+        const query = params.toString();
+        const path = query ? `/notes?${query}` : '/notes';
+        const result = await apiClient.get<NotesListResponse>(path);
+
+        if (result.notes.length === 0) {
+          return {
+            content: [{
+              type: 'text' as const,
+              text: 'No notes found matching your criteria.',
+            }],
+          };
+        }
+
+        const notesList = result.notes.map((n) => {
+          const tags = n.tags.length > 0 ? ` [${n.tags.join(', ')}]` : '';
+          const date = new Date(n.updatedAt).toLocaleDateString('en-US');
+          return `• ${n.title}${tags} (${date}) — id: ${n.noteId}`;
+        }).join('\n');
+
+        let text = `Notes (${result.notes.length}):\n${notesList}`;
+        if (result.nextCursor) {
+          text += `\n\n(More notes available — use cursor: "${result.nextCursor}" to load next page)`;
+        }
+
+        return { content: [{ type: 'text' as const, text }] };
+      } catch (error) {
+        return {
+          content: [{ type: 'text' as const, text: `Error listing notes: ${error instanceof Error ? error.message : String(error)}` }],
+          isError: true,
+        };
+      }
+    },
+  );
+
+  // ─── Get Note Tool ─────────────────────────────────────────────────
+  server.tool(
+    'mcp_notes_get',
+    'Get the full content of a specific note by its ID.',
+    {
+      noteId: z.string().describe('The note ID (ULID format, from mcp_notes_list)'),
+    },
+    async ({ noteId }) => {
+      try {
+        const note = await apiClient.get<Note>(`/notes/${encodeURIComponent(noteId)}`);
+        const tags = note.tags.length > 0 ? `Tags: ${note.tags.join(', ')}\n` : '';
+        const text = `# ${note.title}\n\n${tags}Created: ${new Date(note.createdAt).toLocaleString()}\nUpdated: ${new Date(note.updatedAt).toLocaleString()}\n\n${note.content}`;
+        return { content: [{ type: 'text' as const, text }] };
+      } catch (error) {
+        return {
+          content: [{ type: 'text' as const, text: `Error getting note: ${error instanceof Error ? error.message : String(error)}` }],
+          isError: true,
+        };
+      }
+    },
+  );
+
+  // ─── Create Note Tool ──────────────────────────────────────────────
+  server.tool(
+    'mcp_notes_create',
+    'Create a new note. Before creating, consider using mcp_notes_list_tags to find relevant tags to assign.',
+    {
+      title: z.string().min(1).describe('Note title'),
+      content: z.string().min(1).describe('Note content (plain text, supports newlines)'),
+      tags: z.array(z.string()).optional().describe('Tag names to assign (must exist — use mcp_notes_list_tags to check, or mcp_notes_create_tag to create new ones)'),
+    },
+    async ({ title, content, tags }) => {
+      try {
+        const body: { title: string; content: string; tags?: string[] } = { title, content };
+        if (tags && tags.length > 0) body.tags = tags;
+
+        const result = await apiClient.post<Note>('/notes', body);
+        const tagInfo = result.tags.length > 0 ? ` with tags [${result.tags.join(', ')}]` : '';
+        return {
+          content: [{
+            type: 'text' as const,
+            text: `Note created successfully${tagInfo}.\n\nID: ${result.noteId}\nTitle: ${result.title}`,
+          }],
+        };
+      } catch (error) {
+        return {
+          content: [{ type: 'text' as const, text: `Error creating note: ${error instanceof Error ? error.message : String(error)}` }],
+          isError: true,
+        };
+      }
+    },
+  );
+
+  // ─── Update Note Tool ──────────────────────────────────────────────
+  server.tool(
+    'mcp_notes_update',
+    'Update an existing note. Only provided fields will be changed. Use mcp_notes_list to find the note ID.',
+    {
+      noteId: z.string().describe('The note ID to update (ULID format)'),
+      title: z.string().optional().describe('New title (omit to keep current)'),
+      content: z.string().optional().describe('New content (omit to keep current)'),
+      tags: z.array(z.string()).optional().describe('New tags to assign (replaces all current tags). Pass [] to remove all tags. Omit to keep current tags.'),
+    },
+    async ({ noteId, title, content, tags }) => {
+      try {
+        const body: { title?: string; content?: string; tags?: string[] } = {};
+        if (title !== undefined) body.title = title;
+        if (content !== undefined) body.content = content;
+        if (tags !== undefined) body.tags = tags;
+
+        const result = await apiClient.put<Note>(`/notes/${encodeURIComponent(noteId)}`, body);
+        return {
+          content: [{
+            type: 'text' as const,
+            text: `Note updated successfully.\n\nTitle: ${result.title}\nTags: ${result.tags.length > 0 ? result.tags.join(', ') : '(none)'}`,
+          }],
+        };
+      } catch (error) {
+        return {
+          content: [{ type: 'text' as const, text: `Error updating note: ${error instanceof Error ? error.message : String(error)}` }],
+          isError: true,
+        };
+      }
+    },
+  );
+
+  // ─── Delete Note Tool ──────────────────────────────────────────────
+  server.tool(
+    'mcp_notes_delete',
+    'Permanently delete a note by its ID. This cannot be undone.',
+    {
+      noteId: z.string().describe('The note ID to delete (ULID format)'),
+    },
+    async ({ noteId }) => {
+      try {
+        await apiClient.del(`/notes/${encodeURIComponent(noteId)}`);
+        return {
+          content: [{ type: 'text' as const, text: 'Note deleted successfully.' }],
+        };
+      } catch (error) {
+        return {
+          content: [{ type: 'text' as const, text: `Error deleting note: ${error instanceof Error ? error.message : String(error)}` }],
           isError: true,
         };
       }

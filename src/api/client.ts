@@ -12,6 +12,7 @@ export interface ApiClientDeps {
 export interface ApiClient {
   get<T>(path: string): Promise<T>;
   post<T>(path: string, body: unknown): Promise<T>;
+  put<T>(path: string, body: unknown): Promise<T>;
   del(path: string): Promise<void>;
 }
 
@@ -70,6 +71,9 @@ export function createApiClient(deps: ApiClientDeps): ApiClient {
     },
     post<T>(path: string, body: unknown): Promise<T> {
       return request<T>('POST', path, body);
+    },
+    put<T>(path: string, body: unknown): Promise<T> {
+      return request<T>('PUT', path, body);
     },
     async del(path: string): Promise<void> {
       await request<void>('DELETE', path);

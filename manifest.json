@@ -45,6 +45,26 @@
       "description": "Check authentication status"
     },
     {
+      "name": "mcp_notes_list",
+      "description": "List notes with optional filters (tags, search, dates)"
+    },
+    {
+      "name": "mcp_notes_get",
+      "description": "Get the full content of a note by ID"
+    },
+    {
+      "name": "mcp_notes_create",
+      "description": "Create a new note with title, content, and optional tags"
+    },
+    {
+      "name": "mcp_notes_update",
+      "description": "Update an existing note (title, content, or tags)"
+    },
+    {
+      "name": "mcp_notes_delete",
+      "description": "Permanently delete a note"
+    },
+    {
       "name": "mcp_notes_list_tags",
       "description": "List all your tags"
     },

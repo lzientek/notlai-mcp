@@ -417,10 +417,10 @@ export function createMcpNotesServer(deps: McpNotesServerDeps) {
   // ─── Create Note Tool ──────────────────────────────────────────────
   server.tool(
     'notlai_create_note',
-    'Create a new note. Before creating, consider using notlai_list_tags to find relevant tags to assign.',
+    'Create a new note. Content supports Markdown formatting (headings, lists, code blocks, links, bold, italic, etc.). Before creating, consider using notlai_list_tags to find relevant tags to assign.',
     {
       title: z.string().min(1).describe('Note title'),
-      content: z.string().min(1).describe('Note content (plain text, supports newlines)'),
+      content: z.string().min(1).describe('Note content in Markdown format. Supports headings (#), bold (**), italic (*), lists (- or 1.), code blocks (```), links ([text](url)), blockquotes (>), and tables.'),
       tags: z.array(z.string()).optional().describe('Tag names to assign (must exist — use notlai_list_tags to check, or notlai_create_tag to create new ones)'),
     },
     async ({ title, content, tags }) => {
@@ -448,11 +448,11 @@ export function createMcpNotesServer(deps: McpNotesServerDeps) {
   // ─── Update Note Tool ──────────────────────────────────────────────
   server.tool(
     'notlai_update_note',
-    'Update an existing note. Only provided fields will be changed. Use notlai_list_notes to find the note ID.',
+    'Update an existing note. Only provided fields will be changed. Content supports Markdown formatting. Use notlai_list_notes to find the note ID.',
     {
       noteId: z.string().describe('The note ID to update (ULID format)'),
       title: z.string().optional().describe('New title (omit to keep current)'),
-      content: z.string().optional().describe('New content (omit to keep current)'),
+      content: z.string().optional().describe('New content in Markdown format (omit to keep current). Supports headings, bold, italic, lists, code blocks, links, blockquotes, and tables.'),
       tags: z.array(z.string()).optional().describe('New tags to assign (replaces all current tags). Pass [] to remove all tags. Omit to keep current tags.'),
     },
     async ({ noteId, title, content, tags }) => {

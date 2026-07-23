@@ -25,7 +25,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/lzientek/notlai-mcp.git"
+    "url": "git+https://github.com/lzientek/notlai-mcp.git"
   },
   "engines": {
     "node": ">=20.0.0"

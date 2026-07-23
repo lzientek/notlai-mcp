@@ -28,7 +28,7 @@ jobs:
         run: npm run build
 
       - name: Publish to npm (OIDC trusted publishing)
-        run: npm publish --access public
+        run: npm publish
 
   publish-github:
     runs-on: ubuntu-latest

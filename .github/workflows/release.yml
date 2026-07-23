@@ -1,4 +1,4 @@
-name: Release MCPB Extension
+name: Release
 
 on:
   push:
@@ -20,15 +20,24 @@ jobs:
         with:
           node-version: '20'
           cache: 'npm'
+          registry-url: 'https://registry.npmjs.org'
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Build
+        run: npm run build
 
       - name: Build bundle
         run: node scripts/build-bundle.js
 
       - name: Package MCPB
         run: npx @anthropic-ai/mcpb pack
+
+      - name: Publish to npm
+        run: npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Get version from tag
         id: version

@@ -48,11 +48,21 @@ Add to `.kiro/settings/mcp.json` in your workspace (or `~/.kiro/settings/mcp.jso
   "mcpServers": {
     "notlai": {
       "command": "npx",
-      "args": ["-y", "notlai-mcp"]
+      "args": ["-y", "notlai-mcp"],
+      "timeout": 30000,
+      "type": "stdio",
+      "autoApprove": [
+        "notlai_status",
+        "notlai_list_notes",
+        "notlai_get_note",
+        "notlai_list_tags"
+      ]
     }
   }
 }
 ```
+
+> **Note**: The `timeout` and `autoApprove` fields are recommended for Kiro. Without `timeout`, the first launch (when npx downloads the package) may be considered unresponsive. `autoApprove` allows read-only tools to run without manual confirmation.
 
 ---
 
@@ -146,6 +156,14 @@ It will start the web login flow and give you a URL. Open it in your browser, en
 - No data is sent to third parties — authentication goes directly to the Notlai backend (AWS Cognito)
 
 ## Troubleshooting
+
+### Kiro: tools not appearing after setup
+
+If the Notlai tools don't appear in your Kiro session:
+
+1. Make sure your config includes `"timeout": 30000` — without it, the first launch (npx downloading the package) may timeout before the server responds.
+2. Restart your Kiro session after editing `mcp.json`. MCP servers are loaded at session start.
+3. Check that `npx -y notlai-mcp` works in your terminal (it should hang waiting for stdin — that's normal).
 
 ### "Not authenticated" error
 

@@ -35,6 +35,7 @@ interface Note {
   title: string;
   content: string;
   tags: string[];
+  isFavorite: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -339,22 +340,24 @@ export function createMcpNotesServer(deps: McpNotesServerDeps) {
   // ─── List Notes Tool ────────────────────────────────────────────────
   server.tool(
     'notlai_list_notes',
-    'List your notes. Supports filtering by tags, date range, and text search. Returns the most recently updated notes first.',
+    'List your notes. Supports filtering by tags, date range, text search, and favorites. Returns the most recently updated notes first.',
     {
       tags: z.array(z.string()).optional().describe('Filter by tag names (notes with at least one matching tag)'),
       search: z.string().optional().describe('Search text in title and content'),
       from: z.string().optional().describe('Start date filter (ISO format, e.g. "2025-01-01")'),
       to: z.string().optional().describe('End date filter (ISO format, e.g. "2025-12-31")'),
+      favorites: z.boolean().optional().describe('If true, only return favorite notes'),
       limit: z.number().optional().describe('Max number of notes to return (default: 20)'),
       cursor: z.string().optional().describe('Pagination cursor from a previous response'),
     },
-    async ({ tags, search, from, to, limit, cursor }) => {
+    async ({ tags, search, from, to, favorites, limit, cursor }) => {
       try {
         const params = new URLSearchParams();
         if (tags && tags.length > 0) params.set('tags', tags.join(','));
         if (search) params.set('search', search);
         if (from) params.set('from', from);
         if (to) params.set('to', to);
+        if (favorites) params.set('favorites', 'true');
         if (limit) params.set('limit', String(limit));
         if (cursor) params.set('cursor', cursor);
 
@@ -373,8 +376,9 @@ export function createMcpNotesServer(deps: McpNotesServerDeps) {
 
         const notesList = result.notes.map((n) => {
           const tags = n.tags.length > 0 ? ` [${n.tags.join(', ')}]` : '';
+          const fav = n.isFavorite ? ' ★' : '';
           const date = new Date(n.updatedAt).toLocaleDateString('en-US');
-          return `• ${n.title}${tags} (${date}) — id: ${n.noteId}`;
+          return `• ${n.title}${fav}${tags} (${date}) — id: ${n.noteId}`;
         }).join('\n');
 
         let text = `Notes (${result.notes.length}):\n${notesList}`;
@@ -422,11 +426,13 @@ export function createMcpNotesServer(deps: McpNotesServerDeps) {
       title: z.string().min(1).describe('Note title'),
       content: z.string().min(1).describe('Note content in Markdown format. Supports headings (#), bold (**), italic (*), lists (- or 1.), code blocks (```), links ([text](url)), blockquotes (>), and tables.'),
       tags: z.array(z.string()).optional().describe('Tag names to assign (must exist — use notlai_list_tags to check, or notlai_create_tag to create new ones)'),
+      isFavorite: z.boolean().optional().describe('Mark as favorite (default: false)'),
     },
-    async ({ title, content, tags }) => {
+    async ({ title, content, tags, isFavorite }) => {
       try {
-        const body: { title: string; content: string; tags?: string[] } = { title, content };
+        const body: { title: string; content: string; tags?: string[]; isFavorite?: boolean } = { title, content };
         if (tags && tags.length > 0) body.tags = tags;
+        if (isFavorite) body.isFavorite = true;
 
         const result = await apiClient.post<Note>('/notes', body);
         const tagInfo = result.tags.length > 0 ? ` with tags [${result.tags.join(', ')}]` : '';
@@ -454,13 +460,15 @@ export function createMcpNotesServer(deps: McpNotesServerDeps) {
       title: z.string().optional().describe('New title (omit to keep current)'),
       content: z.string().optional().describe('New content in Markdown format (omit to keep current). Supports headings, bold, italic, lists, code blocks, links, blockquotes, and tables.'),
       tags: z.array(z.string()).optional().describe('New tags to assign (replaces all current tags). Pass [] to remove all tags. Omit to keep current tags.'),
+      isFavorite: z.boolean().optional().describe('Set favorite status. Omit to keep current.'),
     },
-    async ({ noteId, title, content, tags }) => {
+    async ({ noteId, title, content, tags, isFavorite }) => {
       try {
-        const body: { title?: string; content?: string; tags?: string[] } = {};
+        const body: { title?: string; content?: string; tags?: string[]; isFavorite?: boolean } = {};
         if (title !== undefined) body.title = title;
         if (content !== undefined) body.content = content;
         if (tags !== undefined) body.tags = tags;
+        if (isFavorite !== undefined) body.isFavorite = isFavorite;
 
         const result = await apiClient.put<Note>(`/notes/${encodeURIComponent(noteId)}`, body);
         return {

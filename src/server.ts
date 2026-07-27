@@ -92,6 +92,28 @@ export function createMcpNotesServer(deps: McpNotesServerDeps) {
     version: '1.7.0',
   });
 
+  // Detect the MCP client name to pass as source for note attribution
+  let clientSource: string | null = null;
+  const originalConnect = server.connect.bind(server);
+  server.connect = async (transport) => {
+    const result = await originalConnect(transport);
+    try {
+      const inner = (server as unknown as { server: { getClientVersion?: () => { name?: string } } }).server;
+      const clientInfo = inner?.getClientVersion?.();
+      if (clientInfo?.name) {
+        const name = clientInfo.name.toLowerCase();
+        if (name.includes('claude')) clientSource = 'claude';
+        else if (name.includes('kiro')) clientSource = 'kiro';
+        else if (name.includes('cursor')) clientSource = 'cursor';
+        else if (name.includes('windsurf')) clientSource = 'windsurf';
+        else clientSource = name;
+      }
+    } catch {
+      // Client info not available
+    }
+    return result;
+  };
+
   // ─── Register Tool ─────────────────────────────────────────────────
   server.tool(
     'notlai_register',
@@ -462,9 +484,10 @@ export function createMcpNotesServer(deps: McpNotesServerDeps) {
     },
     async ({ title, content, tags, isFavorite }) => {
       try {
-        const body: { title: string; content: string; tags?: string[]; isFavorite?: boolean } = { title, content };
+        const body: { title: string; content: string; tags?: string[]; isFavorite?: boolean; source?: string } = { title, content };
         if (tags && tags.length > 0) body.tags = tags;
         if (isFavorite) body.isFavorite = true;
+        if (clientSource) body.source = clientSource;
 
         const result = await apiClient.post<Note>('/notes', body);
         const tagInfo = result.tags.length > 0 ? ` with tags [${result.tags.join(', ')}]` : '';
@@ -497,12 +520,13 @@ export function createMcpNotesServer(deps: McpNotesServerDeps) {
     },
     async ({ noteId, title, content, tags, folderId, isFavorite }) => {
       try {
-        const body: { title?: string; content?: string; tags?: string[]; folderId?: string | null; isFavorite?: boolean } = {};
+        const body: { title?: string; content?: string; tags?: string[]; folderId?: string | null; isFavorite?: boolean; source?: string } = {};
         if (title !== undefined) body.title = title;
         if (content !== undefined) body.content = content;
         if (tags !== undefined) body.tags = tags;
         if (folderId !== undefined) body.folderId = folderId;
         if (isFavorite !== undefined) body.isFavorite = isFavorite;
+        if (clientSource) body.source = clientSource;
 
         const result = await apiClient.put<Note>(`/notes/${encodeURIComponent(noteId)}`, body);
         return {

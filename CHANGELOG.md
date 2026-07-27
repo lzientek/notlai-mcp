@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.7.0] - 2026-07-27
+
+### Added
+- **Folders**: `notlai_list_folders`, `notlai_create_folder`, `notlai_delete_folder` to organize notes into folders
+- **Move notes**: `notlai_move_note` to reclassify notes into folders or back to root
+- **Bulk delete**: `notlai_bulk_delete_notes` to permanently delete multiple notes at once (up to 50)
+- **Folder filter**: `notlai_list_notes` now accepts `folderId` to list notes in a specific folder (use `"root"` for unfiled notes)
+- **Folder in update**: `notlai_update_note` now accepts `folderId` to move a note during update
+- **Folder indicator**: notes inside a folder show 📁 in list output
+
 ## [1.6.0] - 2026-07-24
 
 ### Added

@@ -126,11 +126,16 @@ It will start the web login flow and give you a URL. Open it in your browser, en
 
 | Tool | Description |
 |------|-------------|
-| `notlai_list_notes` | List notes with filters (tags, search, dates, pagination) |
+| `notlai_list_notes` | List notes with filters (tags, search, dates, folders, pagination) |
 | `notlai_get_note` | Get the full content of a note |
 | `notlai_create_note` | Create a note (supports Markdown content) |
-| `notlai_update_note` | Update a note's title, content, or tags |
+| `notlai_update_note` | Update a note's title, content, tags, or folder |
 | `notlai_delete_note` | Permanently delete a note |
+| `notlai_bulk_delete_notes` | Permanently delete multiple notes at once |
+| `notlai_list_folders` | List all your folders |
+| `notlai_create_folder` | Create a new folder |
+| `notlai_delete_folder` | Delete a folder (notes move back to root) |
+| `notlai_move_note` | Move a note into a folder or back to root |
 | `notlai_list_tags` | List all your tags |
 | `notlai_create_tag` | Create a new tag |
 | `notlai_delete_tag` | Delete a tag (removes it from all notes) |
@@ -143,7 +148,9 @@ It will start the web login flow and give you a URL. Open it in your browser, en
 ## Features
 
 - **Markdown content**: Notes support full Markdown (headings, lists, code blocks, links, tables, etc.)
+- **Folders**: Organize notes into folders — move, reclassify, or keep them at root
 - **Tags**: Organize notes with tags — the AI will automatically suggest relevant tags
+- **Bulk operations**: Delete multiple notes at once to clean up quickly
 - **Search**: Full-text search across titles and content
 - **Date filters**: Filter notes by time period
 - **Web view**: Browse your notes at [www.notlai.com](https://www.notlai.com) (read-only)

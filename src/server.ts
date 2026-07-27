@@ -29,12 +29,23 @@ interface TagsResponse {
   tags: Tag[];
 }
 
+interface Folder {
+  folderId: string;
+  name: string;
+  createdAt: string;
+}
+
+interface FoldersResponse {
+  folders: Folder[];
+}
+
 interface Note {
   noteId: string;
   userId: string;
   title: string;
   content: string;
   tags: string[];
+  folderId: string | null;
   isFavorite: boolean;
   createdAt: string;
   updatedAt: string;
@@ -78,7 +89,7 @@ export function createMcpNotesServer(deps: McpNotesServerDeps) {
 
   const server = new McpServer({
     name: 'notlai-mcp',
-    version: '1.6.0',
+    version: '1.7.0',
   });
 
   // ─── Register Tool ─────────────────────────────────────────────────
@@ -361,11 +372,12 @@ export function createMcpNotesServer(deps: McpNotesServerDeps) {
       from: z.string().optional().describe('Start date filter (ISO format, e.g. "2025-01-01")'),
       to: z.string().optional().describe('End date filter (ISO format, e.g. "2025-12-31")'),
       favorites: z.boolean().optional().describe('If true, only return favorite notes'),
+      folderId: z.string().optional().describe('Filter by folder ID. Use "root" to list notes not in any folder.'),
       scope: z.enum(['own', 'shared', 'all']).optional().describe('Which notes to list: "own" (default), "shared" (notes shared with you), or "all" (both)'),
       limit: z.number().optional().describe('Max number of notes to return (default: 20)'),
       cursor: z.string().optional().describe('Pagination cursor from a previous response'),
     },
-    async ({ tags, search, from, to, favorites, scope, limit, cursor }) => {
+    async ({ tags, search, from, to, favorites, folderId, scope, limit, cursor }) => {
       try {
         const params = new URLSearchParams();
         if (tags && tags.length > 0) params.set('tags', tags.join(','));
@@ -373,6 +385,7 @@ export function createMcpNotesServer(deps: McpNotesServerDeps) {
         if (from) params.set('from', from);
         if (to) params.set('to', to);
         if (favorites) params.set('favorites', 'true');
+        if (folderId) params.set('folderId', folderId);
         if (scope && scope !== 'own') params.set('scope', scope);
         if (limit) params.set('limit', String(limit));
         if (cursor) params.set('cursor', cursor);
@@ -395,8 +408,9 @@ export function createMcpNotesServer(deps: McpNotesServerDeps) {
           const fav = n.isFavorite ? ' ★' : '';
           const shared = n.isShared ? ' 🔗' : '';
           const perm = n.permission ? ` (${n.permission})` : '';
+          const folder = n.folderId ? ` 📁` : '';
           const date = new Date(n.updatedAt).toLocaleDateString('en-US');
-          return `• ${n.title}${fav}${shared}${perm}${tags} (${date}) — id: ${n.noteId}`;
+          return `• ${n.title}${fav}${shared}${folder}${perm}${tags} (${date}) — id: ${n.noteId}`;
         }).join('\n');
 
         let text = `Notes (${result.notes.length}):\n${notesList}`;
@@ -478,14 +492,16 @@ export function createMcpNotesServer(deps: McpNotesServerDeps) {
       title: z.string().optional().describe('New title (omit to keep current)'),
       content: z.string().optional().describe('New content in Markdown format (omit to keep current). Supports headings, bold, italic, lists, code blocks, links, blockquotes, and tables.'),
       tags: z.array(z.string()).optional().describe('New tags to assign (replaces all current tags). Pass [] to remove all tags. Omit to keep current tags.'),
+      folderId: z.string().nullable().optional().describe('Move to a folder by ID, or pass null to move back to root. Omit to keep current folder.'),
       isFavorite: z.boolean().optional().describe('Set favorite status. Omit to keep current.'),
     },
-    async ({ noteId, title, content, tags, isFavorite }) => {
+    async ({ noteId, title, content, tags, folderId, isFavorite }) => {
       try {
-        const body: { title?: string; content?: string; tags?: string[]; isFavorite?: boolean } = {};
+        const body: { title?: string; content?: string; tags?: string[]; folderId?: string | null; isFavorite?: boolean } = {};
         if (title !== undefined) body.title = title;
         if (content !== undefined) body.content = content;
         if (tags !== undefined) body.tags = tags;
+        if (folderId !== undefined) body.folderId = folderId;
         if (isFavorite !== undefined) body.isFavorite = isFavorite;
 
         const result = await apiClient.put<Note>(`/notes/${encodeURIComponent(noteId)}`, body);
@@ -634,6 +650,186 @@ export function createMcpNotesServer(deps: McpNotesServerDeps) {
             {
               type: 'text' as const,
               text: `Error deleting tag: ${message}`,
+            },
+          ],
+          isError: true,
+        };
+      }
+    },
+  );
+
+  // ─── List Folders Tool ──────────────────────────────────────────────
+  server.tool(
+    'notlai_list_folders',
+    'List all your folders. Use folder IDs to filter notes by folder or to move notes into a folder.',
+    {},
+    async () => {
+      try {
+        const result = await apiClient.get<FoldersResponse>('/folders');
+        const folders = result.folders;
+
+        if (folders.length === 0) {
+          return {
+            content: [
+              {
+                type: 'text' as const,
+                text: 'No folders created yet. Use notlai_create_folder to create your first folder.',
+              },
+            ],
+          };
+        }
+
+        const folderList = folders
+          .map((f) => `• 📁 ${f.name} (id: ${f.folderId})`)
+          .join('\n');
+        return {
+          content: [
+            {
+              type: 'text' as const,
+              text: `Your folders (${folders.length}):\n${folderList}`,
+            },
+          ],
+        };
+      } catch (error) {
+        return {
+          content: [
+            {
+              type: 'text' as const,
+              text: `Error listing folders: ${error instanceof Error ? error.message : String(error)}`,
+            },
+          ],
+          isError: true,
+        };
+      }
+    },
+  );
+
+  // ─── Create Folder Tool ────────────────────────────────────────────
+  server.tool(
+    'notlai_create_folder',
+    'Create a new folder to organize your notes. After creating a folder, use notlai_move_note to move notes into it.',
+    {
+      name: z
+        .string()
+        .min(1)
+        .max(100)
+        .describe('Folder name (e.g., "Work", "Personal", "Projects")'),
+    },
+    async ({ name }) => {
+      try {
+        const result = await apiClient.post<Folder>('/folders', { name });
+        return {
+          content: [
+            {
+              type: 'text' as const,
+              text: `Folder "${result.name}" created successfully (ID: ${result.folderId}). You can now move notes into it with notlai_move_note.`,
+            },
+          ],
+        };
+      } catch (error) {
+        return {
+          content: [
+            {
+              type: 'text' as const,
+              text: `Error creating folder: ${error instanceof Error ? error.message : String(error)}`,
+            },
+          ],
+          isError: true,
+        };
+      }
+    },
+  );
+
+  // ─── Delete Folder Tool ────────────────────────────────────────────
+  server.tool(
+    'notlai_delete_folder',
+    'Delete a folder by its ID. Notes inside the folder are moved back to the root (they are not deleted). Use notlai_list_folders to see folder IDs.',
+    {
+      folderId: z.string().describe('The folder ID to delete (ULID format, get from notlai_list_folders)'),
+    },
+    async ({ folderId }) => {
+      try {
+        await apiClient.del(`/folders/${encodeURIComponent(folderId)}`);
+        return {
+          content: [
+            {
+              type: 'text' as const,
+              text: 'Folder deleted successfully. Notes that were inside have been moved to root.',
+            },
+          ],
+        };
+      } catch (error) {
+        return {
+          content: [
+            {
+              type: 'text' as const,
+              text: `Error deleting folder: ${error instanceof Error ? error.message : String(error)}`,
+            },
+          ],
+          isError: true,
+        };
+      }
+    },
+  );
+
+  // ─── Move Note Tool ────────────────────────────────────────────────
+  server.tool(
+    'notlai_move_note',
+    'Move a note into a folder, or back to root. Use this to reclassify and organize your notes. Use notlai_list_folders to find folder IDs.',
+    {
+      noteId: z.string().describe('The note ID to move (ULID format)'),
+      folderId: z.string().nullable().describe('Target folder ID to move the note into, or null to move back to root (no folder)'),
+    },
+    async ({ noteId, folderId }) => {
+      try {
+        const result = await apiClient.put<Note>(`/notes/${encodeURIComponent(noteId)}`, { folderId });
+        const destination = folderId ? `folder ${folderId}` : 'root (no folder)';
+        return {
+          content: [
+            {
+              type: 'text' as const,
+              text: `Note "${result.title}" moved to ${destination}.`,
+            },
+          ],
+        };
+      } catch (error) {
+        return {
+          content: [
+            {
+              type: 'text' as const,
+              text: `Error moving note: ${error instanceof Error ? error.message : String(error)}`,
+            },
+          ],
+          isError: true,
+        };
+      }
+    },
+  );
+
+  // ─── Bulk Delete Notes Tool ────────────────────────────────────────
+  server.tool(
+    'notlai_bulk_delete_notes',
+    'Permanently delete multiple notes at once. This cannot be undone. Use notlai_list_notes to find note IDs.',
+    {
+      noteIds: z.array(z.string()).min(1).max(50).describe('Array of note IDs to delete (ULID format, max 50 at a time)'),
+    },
+    async ({ noteIds }) => {
+      try {
+        await apiClient.post<void>('/notes/bulk-delete', { noteIds });
+        return {
+          content: [
+            {
+              type: 'text' as const,
+              text: `${noteIds.length} note(s) deleted successfully.`,
+            },
+          ],
+        };
+      } catch (error) {
+        return {
+          content: [
+            {
+              type: 'text' as const,
+              text: `Error deleting notes: ${error instanceof Error ? error.message : String(error)}`,
             },
           ],
           isError: true,

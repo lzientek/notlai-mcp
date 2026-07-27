@@ -38,11 +38,25 @@ interface Note {
   isFavorite: boolean;
   createdAt: string;
   updatedAt: string;
+  // Share fields (present when scope=shared or scope=all)
+  isShared?: boolean;
+  ownerId?: string;
+  permission?: 'read' | 'write';
+  sharedAt?: string;
 }
 
 interface NotesListResponse {
   notes: Note[];
   nextCursor: string | null;
+}
+
+interface ShareResponse {
+  shareId: string;
+  shareUrl?: string;
+  type: 'public' | 'user';
+  email?: string;
+  permission: 'read' | 'write';
+  createdAt?: string;
 }
 
 export function createMcpNotesServer(deps: McpNotesServerDeps) {
@@ -347,10 +361,11 @@ export function createMcpNotesServer(deps: McpNotesServerDeps) {
       from: z.string().optional().describe('Start date filter (ISO format, e.g. "2025-01-01")'),
       to: z.string().optional().describe('End date filter (ISO format, e.g. "2025-12-31")'),
       favorites: z.boolean().optional().describe('If true, only return favorite notes'),
+      scope: z.enum(['own', 'shared', 'all']).optional().describe('Which notes to list: "own" (default), "shared" (notes shared with you), or "all" (both)'),
       limit: z.number().optional().describe('Max number of notes to return (default: 20)'),
       cursor: z.string().optional().describe('Pagination cursor from a previous response'),
     },
-    async ({ tags, search, from, to, favorites, limit, cursor }) => {
+    async ({ tags, search, from, to, favorites, scope, limit, cursor }) => {
       try {
         const params = new URLSearchParams();
         if (tags && tags.length > 0) params.set('tags', tags.join(','));
@@ -358,6 +373,7 @@ export function createMcpNotesServer(deps: McpNotesServerDeps) {
         if (from) params.set('from', from);
         if (to) params.set('to', to);
         if (favorites) params.set('favorites', 'true');
+        if (scope && scope !== 'own') params.set('scope', scope);
         if (limit) params.set('limit', String(limit));
         if (cursor) params.set('cursor', cursor);
 
@@ -377,8 +393,10 @@ export function createMcpNotesServer(deps: McpNotesServerDeps) {
         const notesList = result.notes.map((n) => {
           const tags = n.tags.length > 0 ? ` [${n.tags.join(', ')}]` : '';
           const fav = n.isFavorite ? ' ★' : '';
+          const shared = n.isShared ? ' 🔗' : '';
+          const perm = n.permission ? ` (${n.permission})` : '';
           const date = new Date(n.updatedAt).toLocaleDateString('en-US');
-          return `• ${n.title}${fav}${tags} (${date}) — id: ${n.noteId}`;
+          return `• ${n.title}${fav}${shared}${perm}${tags} (${date}) — id: ${n.noteId}`;
         }).join('\n');
 
         let text = `Notes (${result.notes.length}):\n${notesList}`;
@@ -618,6 +636,79 @@ export function createMcpNotesServer(deps: McpNotesServerDeps) {
               text: `Error deleting tag: ${message}`,
             },
           ],
+          isError: true,
+        };
+      }
+    },
+  );
+
+  // ─── Share Note Tool ───────────────────────────────────────────────
+  server.tool(
+    'notlai_share_note',
+    'Share a note. Without email: creates a public link (read-only). With email: shares with a specific user at the given permission level.',
+    {
+      noteId: z.string().describe('The note ID to share'),
+      email: z.string().optional().describe('Recipient email. If omitted, creates a public link.'),
+      permission: z.enum(['read', 'write']).optional().describe('Permission level for user shares (default: "read"). Ignored for public links.'),
+    },
+    async ({ noteId, email, permission }) => {
+      try {
+        const body: { type: string; email?: string; permission?: string } = email
+          ? { type: 'user', email, permission: permission ?? 'read' }
+          : { type: 'public' };
+
+        const result = await apiClient.post<ShareResponse>(`/notes/${encodeURIComponent(noteId)}/share`, body);
+
+        if (result.type === 'public') {
+          return {
+            content: [{
+              type: 'text' as const,
+              text: `Public share link created:\n\n${result.shareUrl}\n\nAnyone with this link can read the note.`,
+            }],
+          };
+        }
+
+        return {
+          content: [{
+            type: 'text' as const,
+            text: `Note shared with ${result.email} (${result.permission} access).`,
+          }],
+        };
+      } catch (error) {
+        return {
+          content: [{ type: 'text' as const, text: `Error sharing note: ${error instanceof Error ? error.message : String(error)}` }],
+          isError: true,
+        };
+      }
+    },
+  );
+
+  // ─── Unshare Note Tool ─────────────────────────────────────────────
+  server.tool(
+    'notlai_unshare_note',
+    'Revoke a share. Without email: revokes the public link. With email: revokes access for that specific user.',
+    {
+      noteId: z.string().describe('The note ID to unshare'),
+      email: z.string().optional().describe('Recipient email to revoke. If omitted, revokes the public link.'),
+    },
+    async ({ noteId, email }) => {
+      try {
+        const query = email
+          ? `?email=${encodeURIComponent(email)}`
+          : '?type=public';
+
+        await apiClient.del(`/notes/${encodeURIComponent(noteId)}/share${query}`);
+
+        const target = email ? `access for ${email}` : 'the public link';
+        return {
+          content: [{
+            type: 'text' as const,
+            text: `Share revoked: ${target} has been removed.`,
+          }],
+        };
+      } catch (error) {
+        return {
+          content: [{ type: 'text' as const, text: `Error unsharing note: ${error instanceof Error ? error.message : String(error)}` }],
           isError: true,
         };
       }

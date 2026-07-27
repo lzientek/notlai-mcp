@@ -70,6 +70,21 @@ interface ShareResponse {
   createdAt?: string;
 }
 
+interface ActivityEvent {
+  noteId: string;
+  timestamp: string;
+  action: string;
+  actorId: string | null;
+  actorEmail: string | null;
+  source: string | null;
+  details: Record<string, unknown> | null;
+}
+
+interface ActivityResponse {
+  events: ActivityEvent[];
+  nextCursor: string | null;
+}
+
 export function createMcpNotesServer(deps: McpNotesServerDeps) {
   const { config } = deps;
   const cognitoClient =
@@ -856,6 +871,71 @@ export function createMcpNotesServer(deps: McpNotesServerDeps) {
               text: `Error deleting notes: ${error instanceof Error ? error.message : String(error)}`,
             },
           ],
+          isError: true,
+        };
+      }
+    },
+  );
+
+  // ─── Get Note Activity Tool ────────────────────────────────────────
+  server.tool(
+    'notlai_get_note_activity',
+    'Get the activity history of a note: who modified what, when, and from which AI. Returns most recent events first.',
+    {
+      noteId: z.string().describe('The note ID (ULID format)'),
+      limit: z.number().optional().describe('Max events to return (default: 20)'),
+    },
+    async ({ noteId, limit }) => {
+      try {
+        const params = new URLSearchParams();
+        if (limit) params.set('limit', String(limit));
+        const query = params.toString();
+        const path = query
+          ? `/notes/${encodeURIComponent(noteId)}/activity?${query}`
+          : `/notes/${encodeURIComponent(noteId)}/activity`;
+
+        const result = await apiClient.get<ActivityResponse>(path);
+
+        if (result.events.length === 0) {
+          return {
+            content: [{
+              type: 'text' as const,
+              text: 'No activity recorded for this note yet.',
+            }],
+          };
+        }
+
+        const lines = result.events.map((e) => {
+          const date = e.timestamp.split('#')[0];
+          const actor = e.source ?? e.actorEmail ?? 'unknown';
+          let desc = e.action;
+          if (e.action === 'title_changed' && e.details) {
+            desc = `renamed "${(e.details as Record<string, string>).oldTitle}" → "${(e.details as Record<string, string>).newTitle}"`;
+          } else if (e.action === 'tags_added' && e.details) {
+            desc = `added tags: ${((e.details as Record<string, string[]>).added ?? []).join(', ')}`;
+          } else if (e.action === 'tags_removed' && e.details) {
+            desc = `removed tags: ${((e.details as Record<string, string[]>).removed ?? []).join(', ')}`;
+          } else if (e.action === 'content_updated') {
+            desc = 'updated content';
+          } else if (e.action === 'note_created') {
+            desc = 'created the note';
+          } else if (e.action === 'folder_changed') {
+            desc = 'moved to a different folder';
+          } else if (e.action === 'favorite_toggled') {
+            const fav = (e.details as Record<string, boolean> | null)?.isFavorite;
+            desc = fav ? 'marked as favorite' : 'removed from favorites';
+          }
+          return `• [${new Date(date).toLocaleString()}] ${actor}: ${desc}`;
+        });
+
+        let text = `Activity (${result.events.length} events):\n${lines.join('\n')}`;
+        if (result.nextCursor) {
+          text += '\n\n(More events available)';
+        }
+        return { content: [{ type: 'text' as const, text }] };
+      } catch (error) {
+        return {
+          content: [{ type: 'text' as const, text: `Error fetching activity: ${error instanceof Error ? error.message : String(error)}` }],
           isError: true,
         };
       }

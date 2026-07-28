@@ -13,10 +13,12 @@ import { refreshTokenIfNeeded } from './auth/refresh.js';
 import { createLocalAuthServer, type LocalAuthServer } from './auth/local-auth-server.js';
 import { createApiClient, type ApiClient } from './api/client.js';
 import type { McpNotesConfig } from './types/config.js';
+import { createDebugLogger, type DebugLogger } from './debug/logger.js';
 
 export interface McpNotesServerDeps {
   config: McpNotesConfig;
   cognitoClient?: CognitoIdentityProviderClient;
+  debug?: boolean;
 }
 
 interface Tag {
@@ -87,6 +89,7 @@ interface ActivityResponse {
 
 export function createMcpNotesServer(deps: McpNotesServerDeps) {
   const { config } = deps;
+  const logger: DebugLogger = createDebugLogger(deps.debug ?? false);
   const cognitoClient =
     deps.cognitoClient ??
     new CognitoIdentityProviderClient({ region: config.region });
@@ -98,6 +101,7 @@ export function createMcpNotesServer(deps: McpNotesServerDeps) {
     credentialStore,
     cognitoClient,
     cognitoClientId: config.cognitoClientId,
+    logger,
   });
 
   let activeAuthServer: LocalAuthServer | null = null;
@@ -107,14 +111,15 @@ export function createMcpNotesServer(deps: McpNotesServerDeps) {
     version: '1.7.0',
   });
 
-  // Detect the MCP client name to pass as source for note attribution
+  // Detect the MCP client name to pass as source for note attribution.
+  // Uses the `oninitialized` callback which fires AFTER the initialize handshake
+  // completes — at that point `getClientVersion()` is populated with client info.
   let clientSource: string | null = null;
-  const originalConnect = server.connect.bind(server);
-  server.connect = async (transport) => {
-    const result = await originalConnect(transport);
+
+  server.server.oninitialized = () => {
     try {
-      const inner = (server as unknown as { server: { getClientVersion?: () => { name?: string } } }).server;
-      const clientInfo = inner?.getClientVersion?.();
+      const clientInfo = server.server.getClientVersion?.();
+      logger.logClientDetection(clientInfo, null);
       if (clientInfo?.name) {
         const name = clientInfo.name.toLowerCase();
         if (name.includes('claude')) clientSource = 'claude';
@@ -123,11 +128,13 @@ export function createMcpNotesServer(deps: McpNotesServerDeps) {
         else if (name.includes('windsurf')) clientSource = 'windsurf';
         else clientSource = name;
       }
-    } catch {
-      // Client info not available
+      logger.logClientDetection(clientInfo, clientSource);
+    } catch (err) {
+      logger.log('client', 'Error detecting client source', err);
     }
-    return result;
   };
+
+  logger.log('server', 'MCP server created', { version: '1.7.0', debug: deps.debug });
 
   // ─── Register Tool ─────────────────────────────────────────────────
   server.tool(
@@ -498,6 +505,7 @@ export function createMcpNotesServer(deps: McpNotesServerDeps) {
       isFavorite: z.boolean().optional().describe('Mark as favorite (default: false)'),
     },
     async ({ title, content, tags, isFavorite }) => {
+      logger.logToolCall('notlai_create_note', { title, tags, isFavorite, clientSource });
       try {
         const body: { title: string; content: string; tags?: string[]; isFavorite?: boolean; source?: string } = { title, content };
         if (tags && tags.length > 0) body.tags = tags;
@@ -534,6 +542,7 @@ export function createMcpNotesServer(deps: McpNotesServerDeps) {
       isFavorite: z.boolean().optional().describe('Set favorite status. Omit to keep current.'),
     },
     async ({ noteId, title, content, tags, folderId, isFavorite }) => {
+      logger.logToolCall('notlai_update_note', { noteId, title, tags, folderId, isFavorite, clientSource });
       try {
         const body: { title?: string; content?: string; tags?: string[]; folderId?: string | null; isFavorite?: boolean; source?: string } = {};
         if (title !== undefined) body.title = title;

@@ -1,12 +1,14 @@
 import type { CredentialStore } from '../storage/credentials.js';
 import type { CognitoIdentityProviderClient } from '@aws-sdk/client-cognito-identity-provider';
 import { refreshTokenIfNeeded } from '../auth/refresh.js';
+import type { DebugLogger } from '../debug/logger.js';
 
 export interface ApiClientDeps {
   apiGatewayUrl: string;
   credentialStore: CredentialStore;
   cognitoClient: CognitoIdentityProviderClient;
   cognitoClientId: string;
+  logger: DebugLogger;
 }
 
 export interface ApiClient {
@@ -17,7 +19,7 @@ export interface ApiClient {
 }
 
 export function createApiClient(deps: ApiClientDeps): ApiClient {
-  const { apiGatewayUrl, credentialStore, cognitoClient, cognitoClientId } = deps;
+  const { apiGatewayUrl, credentialStore, cognitoClient, cognitoClientId, logger } = deps;
 
   async function getValidToken(): Promise<string> {
     const tokens = await credentialStore.load();
@@ -25,7 +27,13 @@ export function createApiClient(deps: ApiClientDeps): ApiClient {
       throw new Error('Not authenticated. Use notlai_web_login or notlai_login first.');
     }
 
-    await refreshTokenIfNeeded(credentialStore, cognitoClient, cognitoClientId);
+    try {
+      await refreshTokenIfNeeded(credentialStore, cognitoClient, cognitoClientId);
+      logger.logTokenRefresh(true);
+    } catch (err) {
+      logger.logTokenRefresh(false, err);
+      throw err;
+    }
 
     // Re-load after potential refresh
     const refreshed = await credentialStore.load();
@@ -35,6 +43,8 @@ export function createApiClient(deps: ApiClientDeps): ApiClient {
   async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
     const token = await getValidToken();
     const url = `${apiGatewayUrl}${path}`;
+
+    logger.logRequest(method, path, body);
 
     const res = await fetch(url, {
       method,
@@ -46,6 +56,7 @@ export function createApiClient(deps: ApiClientDeps): ApiClient {
     });
 
     if (res.status === 204) {
+      logger.logResponse(method, path, 204);
       return undefined as T;
     }
 
@@ -59,10 +70,13 @@ export function createApiClient(deps: ApiClientDeps): ApiClient {
       } catch {
         if (responseBody) errorMessage = responseBody;
       }
+      logger.logResponse(method, path, res.status, errorMessage);
       throw new Error(errorMessage);
     }
 
-    return JSON.parse(responseBody) as T;
+    const parsed = JSON.parse(responseBody) as T;
+    logger.logResponse(method, path, res.status, parsed);
+    return parsed;
   }
 
   return {
